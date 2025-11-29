@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/acai-travel/tech-challenge/internal/chat/model"
@@ -29,6 +30,10 @@ func NewServer(repo *model.Repository, assist Assistant) *Server {
 }
 
 func (s *Server) StartConversation(ctx context.Context, req *pb.StartConversationRequest) (*pb.StartConversationResponse, error) {
+	if strings.TrimSpace(req.GetMessage()) == "" {
+		return nil, twirp.RequiredArgumentError("message")
+	}
+
 	conversation := &model.Conversation{
 		ID:        primitive.NewObjectID(),
 		Title:     "Untitled conversation",
@@ -43,24 +48,40 @@ func (s *Server) StartConversation(ctx context.Context, req *pb.StartConversatio
 		}},
 	}
 
-	if strings.TrimSpace(req.GetMessage()) == "" {
-		return nil, twirp.RequiredArgumentError("message")
+	// BONUS: Run title generation and reply generation in parallel
+	var wg sync.WaitGroup
+	var title, reply string
+	var titleErr, replyErr error
+
+	wg.Add(2)
+
+	// Generate title concurrently
+	go func() {
+		defer wg.Done()
+		title, titleErr = s.assist.Title(ctx, conversation)
+	}()
+
+	// Generate reply concurrently
+	go func() {
+		defer wg.Done()
+		reply, replyErr = s.assist.Reply(ctx, conversation)
+	}()
+
+	wg.Wait()
+
+	// Handle errors
+	if replyErr != nil {
+		return nil, replyErr
 	}
 
-	// choose a title
-	title, err := s.assist.Title(ctx, conversation)
-	if err != nil {
-		slog.ErrorContext(ctx, "Failed to generate conversation title", "error", err)
+	// If title generation fails, log but continue with default title
+	if titleErr != nil {
+		slog.ErrorContext(ctx, "Failed to generate conversation title", "error", titleErr)
 	} else {
 		conversation.Title = title
 	}
 
-	// generate a reply
-	reply, err := s.assist.Reply(ctx, conversation)
-	if err != nil {
-		return nil, err
-	}
-
+	// Add assistant's reply to conversation
 	conversation.Messages = append(conversation.Messages, &model.Message{
 		ID:        primitive.NewObjectID(),
 		Role:      model.RoleAssistant,

@@ -1,13 +1,14 @@
-package assistant
+package calendarclient
 
 import (
 	"context"
 	"fmt"
 	"log/slog"
 
-	"github.com/arran4/golang-ical"
+	ics "github.com/arran4/golang-ical"
 )
 
+// LoadCalendar fetches and parses an iCalendar from a URL
 func LoadCalendar(ctx context.Context, link string) ([]*ics.VEvent, error) {
 	slog.InfoContext(ctx, "Loading calendar", "link", link)
 
