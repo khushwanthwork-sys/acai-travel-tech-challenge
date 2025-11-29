@@ -130,7 +130,7 @@ We would like you to spend at least 1 hour on the challenge.
 - Updated prompt to work with O1 model (removed system messages, added clear instructions)
 - Titles now properly summarize topics (e.g., "Weather in Barcelona" instead of attempting to answer)
 
-**Bonus:** Implemented parallel execution of title and reply generation in `internal/chat/server.go` using goroutines, reducing response time by ~50%.
+**Bonus:** Implemented parallel execution of title and reply generation in `internal/chat/server.go` using goroutines, reducing response time.
 
 **Note:** Further optimization possible by generating titles asynchronously after response, but current approach ensures title availability in initial response.
 
