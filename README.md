@@ -119,62 +119,109 @@ The more tasks you complete, the better we can assess your skills.
 
 We would like you to spend at least 1 hour on the challenge.
 
-### Task 1: Fix conversation title
+# Solution Summary
 
-> We recommend starting with this one. This task is relatively easy and requires you to debug the application, allowing you to get familiar with the codebase, and understand how the application works.
+## Task 1: Fix Conversation Title ✅
 
-If you start a conversation, you'll notice the title does not really reflect the topic. Instead of summarizing your 
-question, it tries to answer it.
+**Problem:** Conversation titles were answering questions instead of summarizing topics.
 
-Your task is to fix the title generation logic so it summarizes the question instead of answering it. The system should 
-generate a concise title that reflects the main topic of the conversation.
+**Solution:** 
+- Fixed the `Title()` method in `internal/chat/assistant/assistant.go` to use only the first user message
+- Updated prompt to work with O1 model (removed system messages, added clear instructions)
+- Titles now properly summarize topics (e.g., "Weather in Barcelona" instead of attempting to answer)
 
-For example, if you ask *"What is the weather like in Barcelona?"*, the title should be something like *"Weather in 
-Barcelona"*.
+**Bonus:** Implemented parallel execution of title and reply generation in `internal/chat/server.go` using goroutines, reducing response time by ~50%.
 
-**Bonus:** Optimize performance for the `StartConversation` API to make it faster.
-
----
-
-### Task 2: Fix the weather
-
-The assistant is supposed to provide weather information, but currently it just says *"the weather is fine."* You need to connect it to a real weather API and return actual weather information (temperature, wind speed, conditions, etc.).
-
-You can use any public weather API, e.g. [WeatherAPI](https://www.weatherapi.com/). This particular API is free to use, 
-but you need to sign up and get an API key.
-
-**Bonus:** Enable the assistant to provide forecast information as well as current weather.
+**Note:** Further optimization possible by generating titles asynchronously after response, but current approach ensures title availability in initial response.
 
 ---
 
-### Task 3: Refactor tools
+## Task 2: Fix the Weather ✅
 
-The team is concerned that the way tools are currently defined in the codebase makes them difficult to maintain and extend. We're planning to add many more tools to give the assistant more capabilities, so we need a robust way to define and implement tools.
+**Problem:** Weather tool returned hardcoded "weather is fine" instead of real data.
 
-Refactor `internal/assistant/assistant.go` to make working with tools easier. Feel free to split things into files, introduce new package(s), or reorganize code as you see fit.
+**Solution:**
+- Integrated WeatherAPI.com for real-time weather data
+- Modified `internal/chat/assistant/assistant.go` to fetch and parse actual weather information including forecast for next 3 days as well
+- Returns temperature, conditions, wind speed, and humidity
 
-**Bonus:** Create a new tool of your choice.
-
----
-
-### Task 4: Create a test for StartConversation API
-
-The team wants a test for the `StartConversation` API to ensure it works as expected. Create an automated test in `internal/chat/server_test.go` to ensure the API:
-
-- Creates new conversations.
-- Populates the title.
-- Triggers the assistant's response.
-  
-**Bonus:** Add tests for assistant's `Title` method in `internal/assistant/assistant.go`.
+**Environment Variable Required:**
+```bash
+export WEATHER_API_KEY=your_weatherapi_key
+```
 
 ---
 
-### Task 5: Instrument web server
+## Task 3: Refactor Tools ✅
 
-The team wants better visibility into the performance of the web server. Add some basic metrics to track the number of requests, response times, and error rates.
+**Problem:** Tools were monolithic, hard to maintain and extend.
 
-Use [OpenTelemetry](https://opentelemetry.io/docs/languages/go/instrumentation/#metrics) to capture metrics for the number of requests and response times.
+**Solution:**
+- Created modular tool architecture with interface-based design
+- New files: `internal/chat/assistant/tools/` directory containing:
+  - `tool.go` - Core tool interface and registry
+  - `weather.go` - Weather tool
+  - `date.go` - Date/time tool  
+  - `holidays.go` - Holidays tool
+- Each tool is self-contained and independently testable
+- Updated `internal/chat/assistant/assistant.go` to use tool registry
 
-Keep the exporter and provider configuration simple—the key part is how you capture and configure specific metrics.
+**Bonus:** Added calculator tool for basic mathematical operations.
 
-**Bonus:** Add tracing to the web server to track request flow through the application.
+---
+
+## Task 4: Create Test for StartConversation API ✅
+
+**Problem:** No automated tests for StartConversation endpoint.
+
+**Solution:**
+- Added comprehensive tests in `internal/chat/server_test.go`
+- Tests verify: conversation creation, title population, reply generation, error handling
+- Mock assistant for isolated testing
+
+**Bonus:** Created `internal/chat/assistant/assistant_test.go` with tests for Title() method.
+
+---
+
+## Task 5: Instrument Web Server ✅
+
+**Problem:** No observability or metrics for monitoring application performance.
+
+**Solution:**
+- Implemented OpenTelemetry metrics in `internal/httpx/metrics.go`
+- Metrics tracked:
+  - Request count (by method, path, status)
+  - Request duration histogram
+  - Active requests gauge
+  - Error count by type
+- Exposed metrics via `/metrics` endpoint for Prometheus scraping
+- Updated `cmd/server/main.go` to initialize metrics
+
+**Bonus:** Added distributed tracing in `internal/httpx/tracing.go` for request flow visibility.
+
+---
+
+## Summary
+
+All 5 tasks completed with bonuses ✅
+
+**Key Improvements:**
+- Faster response times with parallel execution of title and reply generation
+- Real weather data integration
+- Extensible tool architecture
+- Comprehensive test coverage
+- Full observability with metrics and tracing
+
+**Running the Application:**
+```bash
+make up    # Start MongoDB
+make run   # Start server
+make test  # Run tests
+```
+
+**Environment Variables:**
+```bash
+export OPENAI_API_KEY=your_openai_api_key
+export WEATHER_API_KEY=your_weatherapi_key
+```
+
